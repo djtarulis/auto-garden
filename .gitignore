@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+
+# Type checkers
+.mypy_cache/
+.ruff_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# AI tooling — never commit
+.claude/
+.cursor/
+.aider*
+.continue/
+
+# Local config (never commit real secrets / pin assignments)
+config/config.yaml
+config/*.local.yaml
+.env
+*.log
+
+# Local SQLite databases (data, not code)
+*.db
+*.sqlite
+*.sqlite3
+data/

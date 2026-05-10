@@ -1,0 +1,48 @@
+# auto-garden configuration
+# Copy this file to config/config.yaml and edit for your setup.
+# config/config.yaml is gitignored — never commit real pin assignments
+# or anything you wouldn't want public.
+
+# How often the main loop runs (seconds)
+loop_interval_seconds: 60
+
+# Sensor configuration
+sensors:
+  # MCP3008 SPI bus / chip-select. Defaults match a stock Pi wiring.
+  spi_bus: 0
+  spi_device: 0
+  # One entry per physical sensor. `channel` is the MCP3008 input (0–7).
+  # `dry_value` and `wet_value` come from calibration — see docs/hardware.md.
+  channels:
+    - id: bed_front
+      channel: 0
+      dry_value: 800   # raw ADC reading when sensor is in dry air
+      wet_value: 350   # raw ADC reading when sensor is in water
+    - id: bed_back
+      channel: 1
+      dry_value: 800
+      wet_value: 350
+
+# Watering thresholds (as a percentage — 0 = bone dry, 100 = saturated)
+thresholds:
+  open_below_percent: 30   # open valve when average moisture drops below this
+  close_above_percent: 60  # close valve once average moisture rises above this
+
+# Safety limits — these prevent a stuck sensor or bug from flooding the bed
+safety:
+  max_open_seconds: 120          # never leave the valve open longer than this
+  min_seconds_between_waterings: 1800  # cooldown period
+  reject_readings_outside: [50, 1000]  # raw ADC values outside this range are ignored
+
+# Valve (relay) wiring
+valve:
+  gpio_pin: 17           # BCM pin number controlling the relay
+  active_high: true      # set false if your relay module is active-low
+
+# Storage
+storage:
+  database_path: "data/auto-garden.db"
+
+# Logging
+logging:
+  level: INFO            # DEBUG | INFO | WARNING | ERROR
