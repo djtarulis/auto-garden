@@ -32,6 +32,7 @@ coverage.xml
 *.swp
 .DS_Store
 Thumbs.db
+scratch/
 
 # AI tooling — never commit
 .claude/

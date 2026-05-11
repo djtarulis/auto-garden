@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
 from pydantic import BaseModel, Field
 
 
@@ -62,8 +63,7 @@ class AppConfig(BaseModel):
 
 
 def load_config(path: Path) -> AppConfig:
-    # TODO: read the YAML file and return AppConfig.parse_obj(...)/model_validate(...).
-    # Decide what to do if `path` doesn't exist — raise? fall back to example?
-    # Pydantic will give you good error messages on validation failure;
-    # think about whether to wrap them or let them bubble up.
-    raise NotImplementedError
+    with path.open("r", encoding="utf-8") as f:
+        yaml_data = yaml.safe_load(f)
+
+    return AppConfig.model_validate(yaml_data)
