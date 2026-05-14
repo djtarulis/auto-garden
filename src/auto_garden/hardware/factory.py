@@ -5,8 +5,8 @@ directly — they ask the factory for what they need.
 
 from __future__ import annotations
 
-from auto_garden.hardware.sensor import MoistureSensor, SensorCalibration
-from auto_garden.hardware.valve import Valve
+from auto_garden.hardware.sensor import FakeMoistureSensor, MoistureSensor, SensorCalibration
+from auto_garden.hardware.valve import FakeValve, Valve
 
 
 def build_sensors(
@@ -16,12 +16,16 @@ def build_sensors(
     *,
     simulate: bool,
 ) -> list[MoistureSensor]:
-    # TODO: if `simulate` is True, return a list of FakeMoistureSensor objects
+    # TODO implement hardware mode
     # built from the calibration list. Otherwise return MCP3008 sensors.
     # Think about what id / starting value the fakes should have.
-    raise NotImplementedError
+    if not simulate:
+        raise NotImplementedError("hardware mode not yet supported")
+    return [FakeMoistureSensor(sensor_id=cal.sensor_id) for cal in calibrations]
 
 
 def build_valve(gpio_pin: int, active_high: bool, *, simulate: bool) -> Valve:
-    # TODO: same pattern — FakeValve in simulation, RelayValve on the Pi.
-    raise NotImplementedError
+    # TODO implement hardware mode
+    if not simulate:
+        raise NotImplementedError("hardware mode not yet supported")
+    return FakeValve()
