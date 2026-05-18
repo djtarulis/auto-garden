@@ -18,8 +18,10 @@ Things this class needs to handle (think about each):
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Protocol
 
 from auto_garden.config import AppConfig
 from auto_garden.hardware.sensor import MoistureSensor
@@ -37,14 +39,18 @@ class TickResult:
     note: str  # short human-readable reason for the decision
 
 
+class Clock(Protocol):
+    def now(self) -> datetime: ...
+
+
 class IrrigationController:
     def __init__(
         self,
-        sensors: list[MoistureSensor],
+        sensors: Sequence[MoistureSensor],
         valve: Valve,
         config: AppConfig,
         *,
-        clock: type[datetime] = datetime,
+        clock: Clock = datetime,
     ) -> None:
         self._sensors = sensors
         self._valve = valve
@@ -55,25 +61,39 @@ class IrrigationController:
 
     def tick(self) -> TickResult:
         """Run one decision cycle. Should be safe to call repeatedly."""
-        # TODO: implement the decision logic. Pseudocode to get you started:
-        #
-        #   now = self._clock.now()
-        #   readings = [s.read_percent() for s in self._sensors]
-        #   filter out bad readings using config.safety.reject_readings_outside
-        #     (note: that range is in RAW values, you'll need raw + percent —
-        #      decide if you want to filter at raw or percent level)
-        #   if no good readings -> close valve, return TickResult with note
-        #
-        #   avg = mean of good readings
-        #
-        #   if valve is currently open:
-        #       if open longer than max_open_seconds -> force close
-        #       elif avg >= close_above_percent -> close
-        #       else -> leave open
-        #   else (valve closed):
-        #       if cooldown not elapsed -> stay closed
-        #       elif avg < open_below_percent -> open
-        #       else -> stay closed
-        #
-        #   build and return a TickResult that captures the decision.
-        raise NotImplementedError
+        now = self._clock.now()
+        valve_was_open = self._valve.is_open
+
+        lo, hi = self._config.safety.reject_readings_outside
+        # read every sensor's percent
+        good = [s.read_percent() for s in self._sensors if lo <= s.read_raw() <= hi]
+
+        if not good:
+            # all sensors rejected — fail safe
+            self._valve.close()
+            note = "all readings rejected"
+            return TickResult(
+                timestamp=now,
+                moisture_percent=None,
+                valve_was_open=valve_was_open,
+                valve_is_open=self._valve.is_open,
+                note=note,
+            )
+        # compute the average
+        avg = sum(good) / len(good)
+
+        # decision: if closed and avg below open threshold, open
+        if not self._valve.is_open and avg < self._config.thresholds.open_below_percent:
+            self._valve.open()
+            self._opened_at = now
+            note = "opened: moisture below threshold"
+        else:
+            note = "no change"
+
+        return TickResult(
+            timestamp=now,
+            moisture_percent=avg,
+            valve_was_open=valve_was_open,
+            valve_is_open=self._valve.is_open,
+            note=note,
+        )
