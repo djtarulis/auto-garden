@@ -49,7 +49,6 @@ def test_load_config_reads_valid_yaml(tmp_path: Path, valid_config_data: dict[st
 def test_load_config_raises_when_file_missing(tmp_path: Path) -> None:
     # tmp_path is empty — point load_config at a file that doesn't exist
     missing = tmp_path / "does_not_exist.yaml"
-    # assert it raises FileNotFoundError
     with pytest.raises(FileNotFoundError):
         load_config(missing)
 
@@ -67,8 +66,6 @@ def test_load_config_raises_on_malformed_yaml(tmp_path: Path) -> None:
 def test_load_config_raises_on_schema_violation(
     tmp_path: Path, valid_config_data: dict[str, Any]
 ) -> None:
-    # build a config dict where ONE field violates a pydantic constraint
-    # (e.g., open_below_percent=200 — same trick from your pydantic_play.py)
     config_path = tmp_path / "data_dump.yaml"
     bad_data = dict(valid_config_data)
     bad_data["thresholds"] = {"open_below_percent": 200, "close_above_percent": -60}
