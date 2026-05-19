@@ -71,6 +71,7 @@ class IrrigationController:
         if not good:
             # all sensors rejected — fail safe
             self._valve.close()
+            self._last_closed_at = now
             note = "all readings rejected"
             return TickResult(
                 timestamp=now,
@@ -82,13 +83,22 @@ class IrrigationController:
         # compute the average
         avg = sum(good) / len(good)
 
-        # decision: if closed and avg below open threshold, open
-        if not self._valve.is_open and avg < self._config.thresholds.open_below_percent:
+        if self._valve.is_open:
+            # State A: valve is currently OPEN
+            if avg >= self._config.thresholds.close_above_percent:
+                self._valve.close()
+                self._last_closed_at = now
+                note = "closed: moisture above close threshold"
+            else:
+                note = "stayed open: moisture below close threshold"
+
+        # State B: valve is currently CLOSED
+        elif avg < self._config.thresholds.open_below_percent:
             self._valve.open()
             self._opened_at = now
-            note = "opened: moisture below threshold"
+            note = "opened: moisture below open threshold"
         else:
-            note = "no change"
+            note = "stayed closed: moisture above open threshold"
 
         return TickResult(
             timestamp=now,
