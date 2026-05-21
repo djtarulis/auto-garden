@@ -1,7 +1,7 @@
 """Command-line interface.
 
 Wires together: load config -> build hardware (real or fake) -> run loop.
-Keep this file thin — all real work lives in controller / hardware / storage.
+
 """
 
 from __future__ import annotations
