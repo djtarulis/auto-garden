@@ -1,19 +1,8 @@
 """The decision logic — the brain of the system.
 
 Given the latest sensor readings + current valve state + safety constraints,
-decide what to do this tick. This is the most important file in the project
-and is intentionally left for YOU to implement.
+decide what to do this tick.
 
-Things this class needs to handle (think about each):
-  * average / aggregate readings from multiple sensors (mean? median? min?)
-  * hysteresis — open below X%, but don't close until above Y% so the valve
-    doesn't chatter on/off around the threshold
-  * max-open enforcement — if the valve has been open for more than
-    `safety.max_open_seconds`, force it closed regardless of readings
-  * cooldown — refuse to re-open until `min_seconds_between_waterings` has
-    elapsed since the last close
-  * sanity-check readings — drop values outside `safety.reject_readings_outside`
-    before averaging; what should the controller do if ALL readings are bad?
 """
 
 from __future__ import annotations
@@ -44,6 +33,9 @@ class Clock(Protocol):
 
 
 class IrrigationController:
+    """Controller that decides whether the garden needs water, and act on that decision safely.
+    Tick is called once per loop iteration."""
+
     def __init__(
         self,
         sensors: Sequence[MoistureSensor],
@@ -59,19 +51,53 @@ class IrrigationController:
         self._opened_at: datetime | None = None
         self._last_closed_at: datetime | None = None
 
+    def _close_valve(self, now: datetime) -> None:
+        """Close the valve and record the close time. Always use this to close."""
+        self._valve.close()
+        self._last_closed_at = now
+
+    def _decide_open_state(self, now: datetime, avg: float) -> str:
+        """Handle a tick while the valve is open. Returns the TickResult note."""
+        assert self._opened_at is not None  # invariant: open -> opened_at is set
+        elapsed_seconds = (now - self._opened_at).total_seconds()
+        if elapsed_seconds > self._config.safety.max_open_seconds:
+            self._close_valve(now)
+            return "closed: max open time exceeded"
+        elif avg >= self._config.thresholds.close_above_percent:
+            self._close_valve(now)
+            return "closed: moisture above close threshold"
+        else:
+            return "stayed open: moisture below close threshold"
+
+    def _decide_closed_state(self, now: datetime, avg: float) -> str:
+        """Handle a tick while the valve is closed. Returns the TickResult note."""
+        if avg < self._config.thresholds.open_below_percent:
+            cooldown_active = (
+                self._last_closed_at is not None
+                and (now - self._last_closed_at).total_seconds()
+                < self._config.safety.min_seconds_between_waterings
+            )
+            if cooldown_active:
+                return "stayed closed: cooldown not elapsed"
+            else:
+                self._valve.open()
+                self._opened_at = now
+                return "opened: moisture below open threshold"
+        else:
+            return "stayed closed: moisture above open threshold"
+
     def tick(self) -> TickResult:
         """Run one decision cycle. Should be safe to call repeatedly."""
         now = self._clock.now()
         valve_was_open = self._valve.is_open
 
         lo, hi = self._config.safety.reject_readings_outside
-        # read every sensor's percent
-        good = [s.read_percent() for s in self._sensors if lo <= s.read_raw() <= hi]
+        # read each sensor, keeping only readings inside the safety range
+        good_readings = [s.read_percent() for s in self._sensors if lo <= s.read_raw() <= hi]
 
-        if not good:
+        if not good_readings:
             # all sensors rejected — fail safe
-            self._valve.close()
-            self._last_closed_at = now
+            self._close_valve(now)
             note = "all readings rejected"
             return TickResult(
                 timestamp=now,
@@ -81,24 +107,12 @@ class IrrigationController:
                 note=note,
             )
         # compute the average
-        avg = sum(good) / len(good)
+        avg = sum(good_readings) / len(good_readings)
 
         if self._valve.is_open:
-            # State A: valve is currently OPEN
-            if avg >= self._config.thresholds.close_above_percent:
-                self._valve.close()
-                self._last_closed_at = now
-                note = "closed: moisture above close threshold"
-            else:
-                note = "stayed open: moisture below close threshold"
-
-        # State B: valve is currently CLOSED
-        elif avg < self._config.thresholds.open_below_percent:
-            self._valve.open()
-            self._opened_at = now
-            note = "opened: moisture below open threshold"
+            note = self._decide_open_state(now, avg)
         else:
-            note = "stayed closed: moisture above open threshold"
+            note = self._decide_closed_state(now, avg)
 
         return TickResult(
             timestamp=now,

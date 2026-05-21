@@ -17,8 +17,7 @@ class SensorCalibration:
 
     `dry_value` is the raw reading when the probe is in dry air.
     `wet_value` is the raw reading when the probe is fully submerged.
-    Capacitive sensors typically read *higher* when dry — keep that in mind
-    when you implement the conversion.
+    Capacitive sensors typically read *higher* when dry
     """
 
     sensor_id: str
@@ -73,7 +72,7 @@ class MCP3008MoistureSensor(MoistureSensor):
         # Hints:
         #   - capacitive sensors read HIGHER when dry, LOWER when wet
         #   - clamp the result so noisy readings don't return >100 or <0
-        #   - think about what "percent" means here: 0 = as dry as dry_value,
+        #   - "percent" means here: 0 = as dry as dry_value,
         #     100 = as wet as wet_value
         raise NotImplementedError
 

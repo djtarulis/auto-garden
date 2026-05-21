@@ -27,7 +27,7 @@ class Valve(ABC):
 
 
 # ---------------------------------------------------------------------------
-# Real hardware implementation — YOU implement this on the Pi.
+# Real hardware implementation
 # ---------------------------------------------------------------------------
 class RelayValve(Valve):
     """Drives a 5 V relay module from a single GPIO pin."""
