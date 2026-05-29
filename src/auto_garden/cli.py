@@ -97,13 +97,13 @@ def run(
         simulate=simulate,
     )
 
-    # 4. Build the controller
+    # 5. Build the controller
     controller = IrrigationController(sensors=sensors, valve=valve, config=app_config)
 
-    # 5. Determine sleep interval (flag overrides config)
+    # 6. Determine sleep interval (flag overrides config)
     sleep_seconds = interval if interval is not None else app_config.loop_interval_seconds
 
-    # 6. Loop with safe shutdown
+    # 7. Loop with safe shutdown
     try:
         for _ in range(max_iterations):
             result = controller.tick()

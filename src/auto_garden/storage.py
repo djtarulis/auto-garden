@@ -11,6 +11,7 @@ Recommended: SQLite (stdlib, zero ops). Two tables to start:
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 
@@ -20,16 +21,46 @@ from auto_garden.controller import TickResult
 class EventLog:
     def __init__(self, db_path: Path) -> None:
         self._db_path = db_path
-        # TODO: open a sqlite3 connection. Run CREATE TABLE IF NOT EXISTS for
-        # both tables. Decide: keep the connection open for the life of the
-        # process, or open per-call? (Hint: per-call is simpler, fine for
-        # this volume.)
+        conn = sqlite3.connect(db_path)
+        conn.execute(  # create tick log table
+            """CREATE TABLE IF NOT EXISTS tick_log (
+                id INTEGER PRIMARY KEY,
+                timestamp TEXT NOT NULL,
+                moisture_percent REAL,
+                valve_is_open INTEGER NOT NULL,
+                note TEXT NOT NULL
+            )"""
+        )
+        conn.execute(  # create errors table
+            """CREATE TABLE IF NOT EXISTS errors (
+                id INTEGER PRIMARY KEY,
+                timestamp TEXT NOT NULL,
+                note TEXT NOT NULL
+            )"""
+        )
+        conn.commit()  # save changes
+        conn.close()  # close connection
 
-    def record_tick(self, tick: TickResult, sensor_readings: dict[str, float]) -> None:
-        # TODO: write one row per sensor into `readings`, and if the valve
-        # transitioned (open->close or close->open) write a row into `events`.
-        raise NotImplementedError
+    def record_tick(self, tick: TickResult) -> None:
+        conn = sqlite3.connect(self._db_path)
+        conn.execute(
+            """
+                INSERT INTO tick_log (timestamp, moisture_percent, valve_is_open, note)
+                VALUES(?, ?, ?, ?)
+            """,
+            (tick.timestamp.isoformat(), tick.moisture_percent, int(tick.valve_is_open), tick.note),
+        )
+        conn.commit()
+        conn.close()  # Close connection
 
     def record_error(self, when: datetime, note: str) -> None:
-        # TODO: insert a row in `events` with kind='error'.
-        raise NotImplementedError
+        conn = sqlite3.connect(self._db_path)
+        conn.execute(
+            """
+                INSERT INTO errors (timestamp, note)
+                VALUES(?, ?)
+            """,
+            (when.isoformat(), note),
+        )
+        conn.commit()
+        conn.close()  # Close connection
