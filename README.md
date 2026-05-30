@@ -61,16 +61,52 @@ cp config/config.example.yaml config/config.yaml
 
 ## Usage
 
+The CLI exposes two commands: `run` (the control loop) and `read` (a one-off sensor dump for calibration).
+
+### Running the control loop
+
 ```bash
-# Run with the default config
+# Run with the default config (config/config.yaml)
 auto-garden run
 
-# Run in simulation mode (no real hardware required)
-auto-garden run --simulate
-
-# One-off sensor read
-auto-garden read
+# Point at a specific config file
+auto-garden run --config config/bed_back.yaml
 ```
+
+### Try it without hardware
+
+The whole system runs on any machine in **simulation mode** — no Pi, sensors, or valve required. Scripted scenarios drive the controller through its decision branches so you can watch it behave:
+
+```bash
+# Soil dries out over time -> controller opens the valve, then closes once watered
+auto-garden run --simulate --scenario drying --max-iterations 10 --interval 1
+
+# Bed is already wet -> valve stays closed
+auto-garden run --simulate --scenario flood --max-iterations 10 --interval 1
+
+# A sensor returns garbage -> bad readings are rejected; if all are bad the
+# valve fails safe (closed)
+auto-garden run --simulate --scenario bad-sensor --max-iterations 10 --interval 1
+```
+
+Useful flags:
+
+| Flag | Default | Purpose |
+| --- | --- | --- |
+| `--simulate` | off | Use fake hardware instead of real GPIO/SPI |
+| `--scenario` | none | Scripted demo: `drying`, `flood`, or `bad-sensor` (requires `--simulate`) |
+| `--max-iterations` | 20 | Stop after N tick cycles |
+| `--interval` | from config | Seconds between ticks (overrides `loop_interval_seconds`) |
+
+Every tick prints a one-line summary and is persisted to SQLite. Scenario runs write to a separate `data/demo.db` so they never pollute real history.
+
+### Reading sensors (calibration)
+
+```bash
+auto-garden read --simulate
+```
+
+Prints the raw ADC value and converted percentage for each configured sensor. Record the raw values with the probe in dry air and fully submerged, then plug those into `dry_value` / `wet_value` in your config.
 
 ## Development
 
@@ -90,13 +126,14 @@ All three are wired into pre-commit and CI.
 
 ## Roadmap
 
-- [ ] v0.1 — sensor read → threshold decision → valve open/close, with logging
-- [ ] v0.2 — YAML-driven config + safety limits (max open duration, cooldown)
-- [ ] v0.3 — SQLite event/reading log
+- [x] v0.1 — sensor read → threshold decision → valve open/close, with logging
+- [x] v0.2 — YAML-driven config + safety limits (max open duration, cooldown)
+- [x] v0.3 — SQLite event log
+- [x] v0.7 — Sensor calibration CLI command (`auto-garden read`)
+- [ ] Pi hardware drivers (MCP3008 ADC + relay) — wiring up real GPIO/SPI
 - [ ] v0.4 — Web dashboard (FastAPI + a simple chart)
 - [ ] v0.5 — Weather API integration (skip if rain forecast)
 - [ ] v0.6 — Notifications (Pushover / Telegram)
-- [ ] v0.7 — Sensor calibration CLI command
 - [ ] v0.8 — systemd service for auto-start on boot
 
 ## License
