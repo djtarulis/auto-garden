@@ -6,6 +6,7 @@ Wires together: load config -> build hardware (real or fake) -> run loop.
 
 from __future__ import annotations
 
+import sys
 import time
 from pathlib import Path
 from typing import Annotated
@@ -17,6 +18,7 @@ from auto_garden.controller import IrrigationController, TickResult
 from auto_garden.hardware.factory import build_sensors, build_valve
 from auto_garden.hardware.sensor import SensorCalibration
 from auto_garden.scenarios import Scenario, ScenarioMoistureSensor, build_scenario_sensors
+from auto_garden.storage import EventLog
 
 app = typer.Typer(help="Automated garden watering system.")
 
@@ -103,13 +105,28 @@ def run(
     # 6. Determine sleep interval (flag overrides config)
     sleep_seconds = interval if interval is not None else app_config.loop_interval_seconds
 
-    # 7. Loop with safe shutdown
+    # 7. Choose which database to use
+    if scenario is not None:
+        db_path = Path("data/demo.db")
+    else:
+        db_path = Path(app_config.storage.database_path)
+
+    db_path.parent.mkdir(
+        parents=True, exist_ok=True
+    )  # Extract the parent and create it recursively
+    log = EventLog(db_path)  # Construct EventLog
+
+    # 8. Loop with safe shutdown
     try:
         for _ in range(max_iterations):
             result = controller.tick()
             for s in sensors:
                 if isinstance(s, ScenarioMoistureSensor):
                     s.advance()
+            try:  # Try to log results
+                log.record_tick(result)
+            except Exception:  # Print error if disk/DB failure
+                print("Error: failed to write to database", file=sys.stderr)
             print(_format_tick(result))
             time.sleep(sleep_seconds)
     except KeyboardInterrupt:
