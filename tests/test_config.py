@@ -49,8 +49,10 @@ def test_load_config_reads_valid_yaml(tmp_path: Path, valid_config_data: dict[st
 def test_load_config_raises_when_file_missing(tmp_path: Path) -> None:
     # tmp_path is empty — point load_config at a file that doesn't exist
     missing = tmp_path / "does_not_exist.yaml"
-    with pytest.raises(FileNotFoundError):
+    substring = "config.example.yaml"
+    with pytest.raises(FileNotFoundError) as excinfo:
         load_config(missing)
+    assert substring in str(excinfo.value)
 
 
 def test_load_config_raises_on_malformed_yaml(tmp_path: Path) -> None:
