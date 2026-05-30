@@ -142,9 +142,20 @@ def read(
     simulate: SimulateOpt = False,
 ) -> None:
     """Take a single reading from each sensor and print it."""
-    # TODO: load config, build sensors, print one line per sensor with
-    # raw + percent. Handy for calibration and field debugging.
-    raise NotImplementedError
+    app_config = load_config(config)
+
+    calibrations = _channels_to_calibrations(app_config.sensors.channels)
+    sensors = build_sensors(
+        calibrations,
+        spi_bus=app_config.sensors.spi_bus,
+        spi_device=app_config.sensors.spi_device,
+        simulate=simulate,
+    )
+
+    for s in sensors:
+        raw = s.read_raw()
+        pct = s.read_percent()
+        print(f"sensor_id: {s.sensor_id}, raw value: {pct}, moisture percent: {raw:.1f}")
 
 
 if __name__ == "__main__":
