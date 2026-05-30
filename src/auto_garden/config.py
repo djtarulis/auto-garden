@@ -63,7 +63,11 @@ class AppConfig(BaseModel):
 
 
 def load_config(path: Path) -> AppConfig:
-    with path.open("r", encoding="utf-8") as f:
-        yaml_data = yaml.safe_load(f)
-
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            yaml_data = yaml.safe_load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"File Not Found -> {path}: copy config/config.example.yaml to config/config.yaml"
+        ) from None
     return AppConfig.model_validate(yaml_data)
